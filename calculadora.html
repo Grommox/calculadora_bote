@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reparto de Bote Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; margin: 0; 
+        }
+        /* Estilo para el switch deslizante */
+        .tab-indicator {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 p-4 md:p-10 font-sans text-slate-700">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-100">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-600">Reparto de Bote by freycar</h1>
+            <p id="rangoFechas" class="text-slate-500 font-medium mt-1 text-sm md:text-base">Periodo: --/-- al --/--</p>
+        </div>
+
+        <!-- Configuración General -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8 bg-blue-50 p-4 md:p-6 rounded-xl border border-blue-100">
+            <div>
+                <label class="block text-xs md:text-sm font-bold mb-2 uppercase tracking-wide text-blue-800">Euros totales en el bote (€)</label>
+                <input type="number" id="totalBote" value="300" step="0.01"
+                    oninput="actualizarCalculosRapidos()"
+                    class="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-400 outline-none transition-all text-lg font-semibold">
+            </div>
+            <div>
+                <label class="block text-xs md:text-sm font-bold mb-2 uppercase tracking-wide text-blue-800">Días totales del periodo</label>
+                <input type="number" id="diasMes" min="1" max="31"
+                    oninput="cambiarDiasGlobales(this.value)"
+                    class="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-400 outline-none transition-all text-lg font-semibold">
+                <p class="text-[10px] md:text-xs text-slate-500 mt-1">* Días transcurridos entre el 16 y el 15.</p>
+            </div>
+        </div>
+
+        <!-- Selector de Vista (Tabs) -->
+        <div class="relative bg-slate-100 p-1 rounded-xl flex mb-6">
+            <div id="indicador" class="tab-indicator absolute top-1 left-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm"></div>
+            <button onclick="cambiarVista('rapida')" class="relative z-10 w-1/2 py-2 text-sm font-bold transition-colors" id="btnTabRapida">Respuesta rápida</button>
+            <button onclick="cambiarVista('avanzada')" class="relative z-10 w-1/2 py-2 text-sm font-bold text-slate-500 transition-colors" id="btnTabAvanzada">Opciones avanzadas</button>
+        </div>
+
+        <!-- Vista 1: Respuesta Rápida -->
+        <div id="vistaRapida" class="block animate-in fade-in duration-300">
+            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center shadow-inner">
+                <h2 class="text-emerald-800 font-bold uppercase text-xs tracking-widest mb-4">Resumen de reparto</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-emerald-200">
+                        <span class="font-bold text-slate-600" id="label40h">Trabajadores 40h (0):</span>
+                        <span class="text-2xl font-black text-emerald-600" id="resumen40h">0.00 €</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-emerald-200">
+                        <span class="font-bold text-slate-600" id="label20h">Trabajadores 20h (0):</span>
+                        <span class="text-2xl font-black text-emerald-600" id="resumen20h">0.00 €</span>
+                    </div>
+                </div>
+                <p class="text-[10px] text-emerald-600 mt-4 italic">* Cálculo basado en el máximo de días trabajados por todos.</p>
+            </div>
+        </div>
+
+        <!-- Vista 2: Opciones Avanzadas -->
+        <div id="vistaAvanzada" class="hidden animate-in fade-in duration-300">
+            <div class="flex justify-center md:justify-start mb-6">
+                <button id="btnAnadir" onclick="anadirTrabajador()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md">
+                    + Añadir Trabajador
+                </button>
+            </div>
+
+            <div class="hidden md:grid grid-cols-12 gap-4 px-2 mb-4 text-slate-400 text-[10px] uppercase font-bold tracking-wider text-left">
+                <div class="col-span-4">Nombre</div>
+                <div class="col-span-3">Contrato</div>
+                <div class="col-span-2 text-center">Días</div>
+                <div class="col-span-1 text-center">Eliminar</div>
+                <div class="col-span-2 text-right">Cobro</div>
+            </div>
+
+            <div id="listaTrabajadores" class="space-y-4 md:space-y-0"></div>
+        </div>
+    </div>
+
+    <!-- Sección de Transparencia -->
+    <div class="max-w-4xl mx-auto mt-12 pt-8 border-t border-slate-100">
+        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            ¿Cómo se calcula mi parte?
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-600">
+            <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h3 class="font-bold text-blue-700 mb-3 text-base">1. Tus "boletos"</h3>
+                <p class="font-mono bg-white p-2 rounded border text-xs mb-3 text-center">Boletos = Valor Jornada × Días</p>
+                <p class="text-xs">Si eres de 40h sumas 1 boleto por día. Si eres de 20h sumas 0,5 boletos.</p>
+            </div>
+            <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h3 class="font-bold text-blue-700 mb-3 text-base">2. Valor del boleto</h3>
+                <p class="font-mono bg-white p-2 rounded border text-xs mb-3 text-center">Valor = Bote ÷ Suma de Boletos</p>
+                <p class="text-xs">Dividimos el bote entre todos los boletos del equipo.</p>
+            </div>
+            <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h3 class="font-bold text-blue-700 mb-3 text-base">3. Tu sobre final</h3>
+                <p class="font-mono bg-white p-2 rounded border text-xs mb-3 text-center">Total = Tus Boletos × Valor</p>
+                <p class="text-xs">Tus boletos multiplicados por el valor de cada uno.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const totalBoteInput = document.getElementById('totalBote');
+        const diasMesInput = document.getElementById('diasMes');
+        const rangoFechasLabel = document.getElementById('rangoFechas');
+        const listaTrabajadoresUI = document.getElementById('listaTrabajadores');
+        let trabajadores = [];
+
+        function cambiarVista(vista) {
+            const ind = document.getElementById('indicador');
+            const vr = document.getElementById('vistaRapida');
+            const va = document.getElementById('vistaAvanzada');
+            const tr = document.getElementById('btnTabRapida');
+            const ta = document.getElementById('btnTabAvanzada');
+
+            if (vista === 'rapida') {
+                ind.style.transform = 'translateX(0%)';
+                vr.classList.remove('hidden');
+                va.classList.add('hidden');
+                tr.classList.remove('text-slate-500');
+                ta.classList.add('text-slate-500');
+            } else {
+                ind.style.transform = 'translateX(100%)';
+                vr.classList.add('hidden');
+                va.classList.remove('hidden');
+                tr.classList.add('text-slate-500');
+                ta.classList.remove('text-slate-500');
+            }
+        }
+
+        function configurarCiclo() {
+            const hoy = new Date();
+            let fechaFin = new Date(hoy.getFullYear(), hoy.getMonth(), 15);
+            if (hoy.getDate() < 15) fechaFin.setMonth(fechaFin.getMonth() - 1);
+            let fechaInicio = new Date(fechaFin.getFullYear(), fechaFin.getMonth() - 1, 16);
+            const diffTime = Math.abs(fechaFin - fechaInicio);
+            const diasTotales = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            rangoFechasLabel.innerText = `Periodo: ${fechaInicio.toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit'})} al ${fechaFin.toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit'})}`;
+            diasMesInput.value = diasTotales;
+            return diasTotales;
+        }
+
+        function init() {
+            const diasDefault = configurarCiclo();
+            for (let i = 1; i <= 12; i++) {
+                trabajadores.push({
+                    id: Date.now() + Math.random(),
+                    nombre: `Trabajador ${i}`,
+                    contrato: i > 10 ? 0.5 : 1,
+                    dias: diasDefault
+                });
+            }
+            renderizar();
+        }
+
+        function renderizar() {
+            listaTrabajadoresUI.innerHTML = '';
+            actualizarCalculosRapidos(); // Aquí se calculan ambos: tabla y resumen
+
+            trabajadores.forEach(t => {
+                const div = document.createElement('div');
+                div.className = "grid grid-cols-2 md:grid-cols-12 gap-3 md:gap-4 items-center bg-white md:bg-transparent p-4 md:p-2 rounded-xl border md:border-0 md:border-b border-slate-200 md:border-slate-50 shadow-sm md:shadow-none mb-4 md:mb-0 transition-colors hover:bg-slate-50";
+                div.innerHTML = `
+                    <div class="col-span-2 md:col-span-4"><input type="text" value="${t.nombre}" oninput="actualizarDato(${t.id}, 'nombre', this.value)" class="w-full p-2 rounded border border-slate-200 outline-none bg-transparent text-sm"></div>
+                    <div class="col-span-1 md:col-span-3"><select onchange="actualizarDato(${t.id}, 'contrato', this.value)" class="w-full p-2 rounded border border-slate-200 outline-none bg-white text-sm"><option value="1" ${t.contrato === 1 ? 'selected' : ''}>40h</option><option value="0.5" ${t.contrato === 0.5 ? 'selected' : ''}>20h</option></select></div>
+                    <div class="col-span-1 md:col-span-2"><input type="number" value="${t.dias}" oninput="actualizarDato(${t.id}, 'dias', this.value)" class="input-dias-trabajador w-full p-2 rounded border border-slate-200 text-center text-sm"></div>
+                    <div class="col-span-1 md:col-span-1 flex justify-center"><button onclick="eliminarTrabajador(${t.id})" class="text-red-400 hover:text-red-600"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div>
+                    <div class="col-span-1 md:col-span-2 text-right"><span id="cobro-${t.id}" class="font-bold text-emerald-600">0.00 €</span></div>
+                `;
+                listaTrabajadoresUI.appendChild(div);
+            });
+            actualizarCalculosRapidos();
+        }
+
+        function actualizarCalculosRapidos() {
+            const boteTotal = parseFloat(totalBoteInput.value) || 0;
+            const puntosTotales = trabajadores.reduce((acc, t) => acc + (t.dias * t.contrato), 0);
+            const valorPunto = puntosTotales === 0 ? 0 : boteTotal / puntosTotales;
+
+            let count40 = 0, count20 = 0;
+            const maxDias = parseInt(diasMesInput.value) || 0;
+
+            trabajadores.forEach(t => {
+                const totalCobrar = (t.dias * t.contrato * valorPunto).toFixed(2);
+                const el = document.getElementById(`cobro-${t.id}`);
+                if (el) el.innerText = `${totalCobrar} €`;
+                if (t.contrato === 1) count40++; else count20++;
+            });
+
+            // Lógica Vista Rápida
+            document.getElementById('label40h').innerText = `Trabajadores 40h (${count40}):`;
+            document.getElementById('label20h').innerText = `Trabajadores 20h (${count20}):`;
+            document.getElementById('resumen40h').innerText = (1 * maxDias * valorPunto).toFixed(2) + ' €';
+            document.getElementById('resumen20h').innerText = (0.5 * maxDias * valorPunto).toFixed(2) + ' €';
+        }
+
+        function actualizarDato(id, campo, valor) {
+            const t = trabajadores.find(t => t.id === id);
+            if (campo === 'dias') t.dias = parseInt(valor) || 0;
+            else if (campo === 'contrato') t.contrato = parseFloat(valor);
+            else t[campo] = valor;
+            actualizarCalculosRapidos();
+        }
+
+        function cambiarDiasGlobales(valor) {
+            const numDias = parseInt(valor) || 0;
+            trabajadores.forEach(t => t.dias = numDias);
+            document.querySelectorAll('.input-dias-trabajador').forEach(i => i.value = numDias);
+            actualizarCalculosRapidos();
+        }
+
+        function anadirTrabajador() {
+            trabajadores.push({ id: Date.now() + Math.random(), nombre: `Nuevo`, contrato: 1, dias: parseInt(diasMesInput.value) });
+            renderizar();
+        }
+
+        init();
+    </script>
+</body>
+</html>
